@@ -31,6 +31,7 @@ library(tidyverse)
 library(lubridate)
 library(tseries)
 library(forecast)
+library(psych)
 
 process_data <- function(pathname, skip){
   df <- read_excel(pathname, skip=skip)
@@ -74,14 +75,14 @@ date = seq(from = 2008, length = length(crashes_MI_ts), by = 1/12)
 
 #### Some Descriptive Statistics
 ```{r}
-psych::describe(crashes_MI_ts)
-psych::describe(deaths_MI_ts)
+describe(crashes_MI_ts)
+describe(deaths_MI_ts)
 # psych::describe(crashes_US_ts)
 # psych::describe(deaths_US_ts)
 ```
 
-```{r, fig.align = "center", fig.dim = c(12, 12)}
-par(mfrow = c(2, 1))
+```{r, fig.align = "center", fig.dim = c(12, 6)}
+par(mfrow = c(1, 2))
 plot(date, crashes_MI_ts, type = "l")
 plot(date, deaths_MI_ts, type = "l")
 # plot(date, crashes_US_ts, type = "l")
@@ -91,13 +92,6 @@ plot(date, deaths_MI_ts, type = "l")
 
 ### Model Selection
 #### Stationarity Tests
-
-```{r}
-adf.test(crashes_MI_ts)
-adf.test(deaths_MI_ts)
-```
-Both time series have passed the ADF test. 
-
 __Updates__ 
 I have found another statistical test called the KPSS Test^[https://en.wikipedia.org/wiki/KPSS_test]. It seems to be an advanced version of 
 stationary test since it takes trends into consideration. The trend doesn't have to be linear.
@@ -116,7 +110,7 @@ kpss.test(deaths_MI_ts, null = "Trend")
 ```
 Both of $p$-values exceed 0.05, indicating trend stationary.
 
-#### ARMA Models, Before Detrending
+#### ARMA Models, Original Data
 The following code block generates the AIC table, given a stationary time series. It's borrowed from the lecture notes^[https://ionides.github.io/531w25/05/slides.pdf, pp.29].
 ```{r}
 aic_table <- function(data,P,Q){
@@ -137,56 +131,54 @@ table
 require(knitr)
 ```
 
+
+__take the log transformation__
+```{r}
+# crashes_MI_diff = diff(crashes_MI_ts, differences = 2)
+crashes_MI_ts = log(1 + crashes_MI_ts)
+deaths_MI_ts = log(1 + deaths_MI_ts)
+```
+
+```{r, fig.align = "center", fig.dim = c(12, 3)}
+par(mfrow = c(1, 2))
+plot(crashes_MI_ts)
+plot(deaths_MI_ts)
+```
+
 ##### Crashes
 ```{r, warning=FALSE}
 crashes_table = aic_table(crashes_MI_ts, 4, 3)
 kable(crashes_table, digits=2)
 ```
 
-ARMA(2, 3) vs ARMA(4, 3). The AIC's are close.
+ARMA(3, 2)
 
 ```{r}
-crashes_arma23 = arima(crashes_MI_ts, order = c(2, 0, 3))
-crashes_arma43 = arima(crashes_MI_ts, order = c(4, 0, 3))
+crashes_arma = arima(crashes_MI_ts, order = c(3, 0, 2))
+summary(crashes_arma)
 ```
 
-__Likelihood Ratio Test__
-We have two nested parameter spaces and therefore we can try LRT.
-```{r}
-lrt = function(model0, model1, df){
-    chi_sq = 2 * (model1$loglik - model0$loglik)
-    pval = pchisq(chi_sq, df, lower.tail = FALSE)
-    cat(sprintf("Test Statistic: %.4f\nDOF: %d\np-value: %.4f", chi_sq, df, pval))
-    }
-```
-
-```{r}
-lrt(crashes_arma23, crashes_arma43, 2)
-```
-
-Fitting ARMA(4, 3) is not necessary.
-
- __Diagnostics for ARMA(2,3)__:
+ __Diagnostics__:
 
 + Check the AR roots (the code also comes from the lecture notes^[https://ionides.github.io/531w25/05/slides-annotated.pdf, p.32]):
 ```{r}
-AR_roots <- polyroot(c(1,-coef(crashes_arma23)[c("ar1","ar2")]))
+AR_roots <- polyroot(c(1,-coef(crashes_arma)[c("ar1","ar2", "ar3")]))
 abs(AR_roots)
 ```
-That's an edge case. 
 
 + Ljung-Box Test
 ```{r}
-Box.test(crashes_arma23$residuals, lag = 20, type = "Ljung-Box")
+Box.test(crashes_arma$residuals, lag = 20, type = "Ljung-Box")
+adf.test(crashes_arma$residuals)
 ```
 
 + Residual Plots
 ```{r, fig.align = "center", fig.dim = c(12, 3)}
 par(mfrow = c(1, 3))
-plot(crashes_arma23$residuals)
-acf(crashes_arma23$residuals)
-qqnorm(crashes_arma23$residuals, pch = 1, frame = FALSE)
-qqline(crashes_arma23$residuals, col = "steelblue", lwd = 2)
+plot(crashes_arma$residuals)
+acf(crashes_arma$residuals)
+qqnorm(crashes_arma$residuals, pch = 1, frame = FALSE)
+qqline(crashes_arma$residuals, col = "steelblue", lwd = 2)
 ```
 
 positive autocorrelation; right skew
@@ -201,33 +193,33 @@ kable(deaths_table, digits=2)
 ARMA(3, 2)
 
 ```{r}
-deaths_arma32 = arima(deaths_MI_ts, order = c(3, 0, 2))
-summary(deaths_arma32)
+deaths_arma = arima(deaths_MI_ts, order = c(3, 0, 2))
+summary(deaths_arma)
 ```
 
 __Diagnostics__
 
 + Check AR roots
 ```{r}
-AR_roots <- polyroot(c(1,-coef(deaths_arma32)[c("ar1","ar2","ar3")]))
+AR_roots <- polyroot(c(1,-coef(deaths_arma)[c("ar1","ar2","ar3")]))
 abs(AR_roots)
 ```
 
 + Ljung-Box Test
 ```{r}
-Box.test(deaths_arma32$residuals, lag = 20, type = "Ljung-Box")
+Box.test(deaths_arma$residuals, lag = 20, type = "Ljung-Box")
+adf.test(deaths_arma$residuals)
 ```
 
 + Residual Plots
 ```{r, fig.align = "center", fig.dim = c(12, 3)}
 par(mfrow = c(1, 3))
-plot(deaths_arma32$residuals)
-acf(deaths_arma32$residuals)
-qqnorm(deaths_arma32$residuals, pch = 1, frame = FALSE)
-qqline(deaths_arma32$residuals, col = "steelblue", lwd = 2)
+plot(deaths_arma$residuals)
+acf(deaths_arma$residuals)
+qqnorm(deaths_arma$residuals, pch = 1, frame = FALSE)
+qqline(deaths_arma$residuals, col = "steelblue", lwd = 2)
 ```
 
-light-tailed on the left
 
 #### ARMA models, After Detrending
 Let's see what happens after we detrend the data. (I read some docs^[https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/stl] be4 writing the following code.)
@@ -240,45 +232,43 @@ deaths_MI_detrended = deaths_MI_ts - deaths_MI_decomposed$time.series[, "trend"]
 
 ```
 
+```{r, fig.align="center", fig.dim = c(12, 8)}
+plot(crashes_MI_decomposed)
+plot(deaths_MI_decomposed)
+```
+
 ##### Crashes, detrended
-ARMA(2, 2) has the lowest AIC, but ARMA(2, 3) is close.
+ARMA(3, 3)
 ```{r, warning=FALSE}
 crashes_detrend_table = aic_table(crashes_MI_detrended, 4, 3)
 kable(crashes_detrend_table, digits=2)
 ```
 ```{r}
-crashes_detrend_arma22 = arima(crashes_MI_detrended, order = c(2, 0, 2))
-crashes_detrend_arma23 = arima(crashes_MI_detrended, order = c(2, 0, 3))
+crashes_detrend_arma = arima(crashes_MI_detrended, order = c(3, 0, 3))
 ```
 
-
-__Likelihood Ratio Tests__
-```{r}
-lrt(crashes_detrend_arma22, crashes_detrend_arma23, 1)
-```
-
-ARMA(2, 2) is good.
 
 __Diagnostics__
 
 + Check the AR roots
 ```{r}
-AR_roots <- polyroot(c(1,-coef(crashes_detrend_arma22)[c("ar1","ar2")]))
+AR_roots <- polyroot(c(1,-coef(crashes_detrend_arma)[c("ar1","ar2", "ar3")]))
 abs(AR_roots)
 ```
 
 + Ljung-Box Test
 ```{r}
-Box.test(crashes_detrend_arma22$residuals, lag = 20, type = "Ljung-Box")
+Box.test(crashes_detrend_arma$residuals, lag = 20, type = "Ljung-Box")
+adf.test(crashes_detrend_arma$residuals)
 ```
 
 + Residual Plots
 ```{r, fig.align = "center", fig.dim = c(12, 3)}
 par(mfrow = c(1, 3))
-plot(crashes_detrend_arma22$residuals)
-acf(crashes_detrend_arma22$residuals)
-qqnorm(crashes_detrend_arma22$residuals, pch = 1, frame = FALSE)
-qqline(crashes_detrend_arma22$residuals, col = "steelblue", lwd = 2)
+plot(crashes_detrend_arma$residuals)
+acf(crashes_detrend_arma$residuals)
+qqnorm(crashes_detrend_arma$residuals, pch = 1, frame = FALSE)
+qqline(crashes_detrend_arma$residuals, col = "steelblue", lwd = 2)
 ```
 
 
@@ -290,29 +280,30 @@ kable(deaths_detrend_table, digits=2)
 ```
 
 ```{r}
-deaths_detrend_arma23 = arima(deaths_MI_detrended, order = c(2, 0, 3))
+deaths_detrend_arma = arima(deaths_MI_detrended, order = c(2, 0, 3))
 ```
 
 __Diagnostics__
 
 + Check the AR roots
 ```{r}
-AR_roots <- polyroot(c(1,-coef(deaths_detrend_arma23)[c("ar1","ar2")]))
+AR_roots <- polyroot(c(1,-coef(deaths_detrend_arma)[c("ar1","ar2")]))
 abs(AR_roots)
 ```
 
 + Ljung-Box Test
 ```{r}
-Box.test(deaths_detrend_arma23$residuals, lag = 20, type = "Ljung-Box")
+Box.test(deaths_detrend_arma$residuals, lag = 20, type = "Ljung-Box")
+adf.test(deaths_detrend_arma$residuals)
 ```
 
 + Residual Plots
 ```{r, fig.align = "center", fig.dim = c(12, 3)}
 par(mfrow = c(1, 3))
-plot(deaths_detrend_arma23$residuals)
-acf(deaths_detrend_arma23$residuals)
-qqnorm(deaths_detrend_arma23$residuals, pch = 1, frame = FALSE)
-qqline(deaths_detrend_arma23$residuals, col = "steelblue", lwd = 2)
+plot(deaths_detrend_arma$residuals)
+acf(deaths_detrend_arma$residuals)
+qqnorm(deaths_detrend_arma$residuals, pch = 1, frame = FALSE)
+qqline(deaths_detrend_arma$residuals, col = "steelblue", lwd = 2)
 ```
 
 
