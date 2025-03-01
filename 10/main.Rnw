@@ -1,0 +1,243 @@
+\input{../header}
+
+\newcommand\eqspace{\hspace{3mm}}
+\newcommand\eqvspace{\vspace{1mm}}
+\newcommand\negListSpace{\hspace{-4mm}}
+
+
+\mode<beamer>{\usetheme{AnnArbor}}
+\mode<beamer>{\setbeamertemplate{footline}}
+\mode<beamer>{\setbeamertemplate{footline}[frame number]}
+\mode<beamer>{\setbeamertemplate{frametitle continuation}[from second][\insertcontinuationcountroman]}
+\mode<beamer>{\setbeamertemplate{navigation symbols}{}}
+
+\mode<handout>{\pgfpagesuselayout{2 on 1}[letterpaper,border shrink=5mm]}
+
+\newcommand\CHAPTER{10}
+% \newcommand\answer[2]{\textcolor{blue}{#2}} % to show answers
+% \newcommand\answer[2]{\textcolor{red}{#2}} % to show answers
+ \newcommand\answer[2]{#1} % to show blank space
+\usepackage{bbm} % for blackboard bold 1
+
+
+\title{\vspace{2mm} \link{https://ionides.github.io/531w25/}{Modeling and Analysis of Time Series Data}\\ \vspace{2mm}
+Chapter \CHAPTER: Forecasting}
+\author{Edward L. Ionides}
+\date{}
+
+\setbeamertemplate{footline}[frame number]
+
+<<setup,include=FALSE,cache=FALSE,purl=FALSE,child="../setup.Rnw">>=
+@
+
+\begin{document}
+
+\maketitle
+
+\mode<article>{\tableofcontents}
+
+\mode<presentation>{
+  \begin{frame}{Outline}
+    \tableofcontents
+  \end{frame}
+}
+
+
+<<,echo=F>>=
+set.seed(2050320976)
+@
+
+\section{Introduction}
+% \subsection{Introduction}
+\begin{frame}[fragile]{Model-based forecasts}
+
+\mode<presentation>{
+\vspace{-2mm}
+}
+
+\bi
+
+\item  Data, $y^*_{1:N}$, and a model $Y_{1:N+h}$ with joint density $f_{Y_1:N+h}(y_{1:N+h}|\theta)$ can be used to \myemph{forecast} future values $y_{N+1:N+h}$ up to a \myemph{horizon}, $h$.
+
+
+\item A model-based \myemph{probabilistic forecast} of the not-yet-observed values $y_{N+1:N+h}$ is
+\begin{equation}
+f_{Y_{N+1:N+h}|Y_{1:N}} \big( y_{N+1:N+h} | y^*_{1:N} ; \hat\theta \big),
+\end{equation}
+where $\hat\theta$ is a point estimate such as an MLE.
+
+\item A model-based \myemph{point forecast} of $y_{N+1:N+h}$ is
+\begin{equation}
+\E\big[Y_{N+1:N+h} \big| Y_{1:N}=y^*_{1:N};\hat\theta \big].
+\end{equation}
+
+\item Point forecasts and probabilistic forecasts have many applications in business and elsewhere.
+
+\ei
+
+\end{frame}
+
+\begin{frame}{Evaluating forecasts}
+
+\bi
+\item Point forecasts could be evaluated by squared error, absolute error, relative squared error, relative absolute error, etc.
+
+\item Probabilistic forecasts are naturally evaluated by the forecast log-density,
+\begin{equation}
+\log f_{Y_{N+1:N+h}|Y_{1:N}} \big( y_{N+1:N+h} | y^*_{1:N} ; \hat\theta \big),
+\end{equation}
+evaluated at the data, $y^*_{N+1:N+h}$, once it is collected.
+
+\item Due to time dependence, and limited amounts of data, it can be problematic to evaluate by cross-validation.
+
+\item Note that log-likelihood can be written as a sum of one-step forecast log-densities:
+\begin{equation}
+\log f_{Y_{1:N}}(y^*_{1:N};\theta) = \sum_{n=1}^N  \log f_{Y_{n}|Y_{1:n-1}}(y^*_n| Y^*_{1:n-1};\theta)
+\end{equation}
+
+\ei
+
+\end{frame}
+
+\section{ARIMA forecasting}
+
+\begin{frame}[fragile]{ARIMA forecasting}
+
+\code{predict.Arima()} computes the conditional Gaussian distribution for forecasting an ARIMA model.
+
+<<arima-predict-huron-code,echo=TRUE,eval=F>>=
+dat <- read.table(file="huron_level.csv",sep=",",header=TRUE)
+huron_level <- ts(as.vector(t(dat[,2:13])),start=1860,freq=12)
+time <- rep(dat$Year,each=12)+ rep(0:11,nrow(dat))/12
+huron_old <- window(huron_level,end=2014.99)
+sarma <- arima(huron_old,order=c(1,0,1),
+  seasonal=list(order=c(1,0,1),period=12))
+f.sarma <- predict(sarma,n.ahead=120)
+f.val <- as.vector(f.sarma$pred)
+f.se <- as.vector(f.sarma$se)
+f.time <- as.vector(time(f.sarma$pred))
+plot(huron_level)
+lines(f.time,f.val,col="red")
+lines(f.time,f.val+1.96*f.se,col="blue")
+lines(f.time,f.val-1.96*f.se,col="blue")
+@
+
+\end{frame}
+
+\begin{frame}[fragile]{95\% prediction interval from December 2014}
+
+<<arima-predict-huron-plot,echo=FALSE,eval=TRUE,fig.height=5,fig.width=8,out.width="12cm">>=
+<<arima-predict-huron-code>>
+@
+
+\end{frame}
+
+\section{Prophet}
+
+\begin{frame}{Facebook Prophet}
+\bi
+\item ARIMA models are good for relatively short time series.
+\item SARIMA is good for monthly and quarterly data, but less so for daily or hourly.
+\item You may have already experienced this. Large-scale forecasting competitions confirm it \citep{makridakis20}.
+\item Prophet was designed for high-frequency (daily, hourly) business forecasting tasks at Facebook, and is widely used for similar tasks elsewhere.
+\item Prophet does penalized regression estimating trend and seasonality components. It can also do Bayesian fitting.
+\item Unlike ARIMA, Prophet cannot describe general covariance structures.
+\ei
+
+\end{frame}
+
+\begin{frame}[fragile]
+<<prophet-predict-huron-code,echo=TRUE,eval=TRUE,warning=FALSE,messages=FALSE,fig.height=3,fig.width=8,out.width="12cm">>=
+library(prophet)
+library(ggplot2)
+history <- data.frame(y = huron_old,
+  ds = seq(as.Date('1860-01-01'), as.Date('2014-12-01'), by = 'm'))
+fit <- prophet(history)
+future <- make_future_dataframe(fit, periods = 10*12,freq='month')                           
+forecast <- predict(fit,future)
+plot(fit,forecast)+
+  geom_point(data=data.frame(ds=future$ds[-(1:1860)],y=huron_level[-(1:1860)]),color="red")
+@
+
+\end{frame}
+
+\section{Forecasting vs modeling}
+
+\begin{frame}{Forecasting versus model fitting}
+
+\bi
+\item A good model should imply a good model-based forecast.
+
+\item Long-term forecasting is extrapolation. The model may be unreliable far from the timeframe used to build it.
+
+\item Without evidence to support a model for long-term forecasts, uncertainty estimates should be high. Uncertainty estimates are also uncertain!
+
+\item Deep learning methods need large amounts of data. They are not yet standard for forecasting. Prophet uses automatic differentiation techniques that enable deep learning.
+
+\ei
+
+\end{frame}
+
+\begin{frame}{Forecasting with trends and covariates}
+
+\bi
+\item A model with trends and covariates must project those into the future in order to forecast.
+
+\item Uncertainty about future trends may be captured by ``stochastic trend'' models. Prophet does this.
+
+\item We've seen the difficulty assessing stationarity vs slowly varying trend. The same issue arises with forecasting. How do we know if a trend will continue, or if it will change in future?
+
+\ei
+
+\end{frame}
+
+\begin{frame}{Further reading} 
+
+\bi
+
+\item Section~3.5 of \citet{shumway17} covers ARIMA forecasting.
+
+\item \citet{hyndman08} introduces the \texttt{forecast} R package.
+
+\item \citet{taylor18} presents the Facebook Prophet forecasting algorithm.
+
+\ei
+
+
+\end{frame}
+
+\newcommand\acknowledgments{
+
+\begin{itemize}
+\item   Compiled on {\today} using \Rlanguage version \Sexpr{getRversion()}.
+\item   \parbox[t]{0.75\textwidth}{Licensed under the \link{http://creativecommons.org/licenses/by-nc/4.0/}{Creative Commons Attribution-NonCommercial license}.
+    Please share and remix non-commercially, mentioning its origin.}
+    \parbox[c]{1.5cm}{\includegraphics[height=12pt]{../cc-by-nc}}
+\item We acknowledge \link{https://ionides.github.io/531w25/acknowledge.html}{previous versions of this course}.
+\end{itemize}
+}
+
+\mode<presentation>{
+\begin{frame}[allowframebreaks=0.8]{References and Acknowledgements}
+   
+\bibliography{../bib531}
+
+\vspace{3mm}
+
+\acknowledgments
+
+\end{frame}
+}
+
+\mode<article>{
+
+{\bf \Large \noindent Acknowledgments}
+
+\acknowledgments
+
+  \bibliography{../bib531}
+
+}
+
+\end{document}
+
