@@ -54,11 +54,11 @@ Students registering for 631 are expected to have taken at least one core PhD-le
 
 14. [Likelihood for POMP models: Theory and practice](14/index.html)
 
-<!--
 15. [Likelihood maximization for POMP models](15/index.html)
 
 16. [A case study of polio including covariates, seasonality & over-dispersion](16/index.html)
 
+<!--
 17. [A case study of financial volatility and a POMP model with observations driving latent dynamics](17/index.html). With [notes on how to run the code on the Great Lakes Linux cluster](17/README.html).
 
 18. [A case study of measles: Dynamics revealed in long time series](18/index.html)
@@ -107,10 +107,12 @@ There are further POMP case studies, in a similar style, on [Ebola modeling](htt
 [Solution](hw06/sol06.html).
 -->
 
-* [Participation 3](participation/participation3.html), due Sun Mar 23, 11:59pm.
+* [Piazza participation 3](participation/participation3.html), due Sun Mar 23, 11:59pm.
+
+* [Homework 7](hw07/hw07.html), due Sun Mar 30. **Deadline extended to Wed Apr 2, due to canceled class**, 11:59pm.
 
 <!--
-* [Homework 7](hw07/hw07.html), due Sun Mar 31, 11:59pm. Extended to Wed Apr 3.
+
 [Solution](hw07/sol07.html).
 
 
@@ -120,7 +122,7 @@ There are further POMP case studies, in a similar style, on [Ebola modeling](htt
 * [Homework 8](hw08/hw08.pdf), due Sun Apr 14, 11:59pm.
 [Solution](hw08/sol08.pdf).
 
-* [Participation 8](participation/participation8.html), due Sun Apr 14, 11:59pm.
+* [Piazza participation 4](participation/participation4.html), due Sun Apr 14, 11:59pm.
 
 -->
 
@@ -165,11 +167,9 @@ There are further POMP case studies, in a similar style, on [Ebola modeling](htt
 
 * You're welcome to browse previous final projects. The  [2024](http://ionides.github.io/531w24/final_project/), [2022](http://ionides.github.io/531w22/final_project/) and  [2021](http://ionides.github.io/531w21/final_project/)  final projects have a posted summary of peer review comments. Earlier projects from [2016](http://ionides.github.io/531w16/final_project/), [2018](http://ionides.github.io/531w18/final_project/), [2020](http://ionides.github.io/531w20/final_project/) may also be useful.
 
-If building on old source code, note that there are some differences between versions of the software package **pomp**. The [**pomp** version 2 upgrade guide](https://kingaa.github.io/pomp/vignettes/upgrade_guide.html) can be helpful. There are various smaller changes between **pomp 2.0** and the current **pomp 5.6**.
+If building on old source code, note that there are some differences between versions of the software package **pomp**. The [**pomp** version 2 upgrade guide](https://kingaa.github.io/pomp/vignettes/upgrade_guide.html) can be helpful. There are various smaller changes between **pomp 2.0** and the current **pomp**.
 
 --------
-
-<!--
 
 ## Using the Great Lakes cluster
 
@@ -177,17 +177,16 @@ If building on old source code, note that there are some differences between ver
 
 * [Introductory notes](greatlakes/index.html) for using our class account on the greatlakes cluster. This is optional but may be helpful for your final project.
 
-* If you are already familiar with using R on Great Lakes, all you need to know is the class account: ```stats531w24_class```.
+* If you are already familiar with using R on Great Lakes, all you need to know is the class account: ```datasci531w25_class```.
 
 * You are expected to use our class account only for computations related to DATASCI/STATS 531.
 
 * Please share knowledge about cluster computing between group members, and/or on piazza, to help everyone who wants to learn these skills.
 
-* Cluster-related questions can also be emailed to arc-support@umich.edu.
+* Cluster-related questions can also be emailed to the U-M Information and Technology Services helpdesk, help@umich.edu
 
 ---------
 
--->
 
 
 
